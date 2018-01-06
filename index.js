@@ -1,5 +1,6 @@
 require('dotenv').config();
 const tmi = require('tmi.js');
+const got = require( 'got' );
 
 // TODO: [injectJon]
 // Fetch live EFT streams via twitch dev api, connect via IRC to top 20(?)
@@ -7,25 +8,53 @@ const tmi = require('tmi.js');
 //     Option 1: Keep a constant 5min message history to grab context message (more context matches)
 //     Option 2: Keep all messages (within 5min) that mention a dev (performant)
 
+const apiRequest = function apiRequest( path ) {
+    return got( `https://api.kokarn.com${ path }`, {
+            headers: {
+                Authorization: `Bearer ${ process.env.API_TOKEN }`
+            },
+        } )
+        .then( ( response ) => {
+            return JSON.parse( response.body );
+        } );
+};
 
-// Example params from API
-const streams = [
-    '#kotton',
-    '#klean',
-];
+const getStreams = async function getStreams(){
+    const gamesResponse = await apiRequest( '/games' );
 
-const devs = {
-    'escapefromtarkov': {
-        name: 'Nikita',
-        nick: 'EscapeFromTarkov',
-        role: 'Chief Operating Officer - Battlestate Games',
-        twitchActivity: {
-            updatedAt: Date.now(),
-            active: false,
-            channels: [],
-            messages: [],
-        },
-    },
+    for ( let i = 0; i < gamesResponse.data.length; i = i + 1 ) {
+        if ( gamesResponse.data[ i ].identifier === 'escape-from-tarkov' ) {
+            return gamesResponse.data[ i ].config.sources.Twitch.allowedSections.map( ( streamName ) => {
+                return `#${ streamName }`;
+            } );
+        }
+    }
+};
+
+const getDevelopers = async function getDevelopers(){
+    const accountResponse = await apiRequest( '/escape-from-tarkov/accounts' );
+    const validAccounts = {};
+
+    accountResponse.data.map( ( account ) => {
+        if ( account.service !== 'Twitch' ) {
+            return true;
+        }
+
+        validAccounts[ account.identifier ] = Object.assign(
+            {},
+            account,
+            {
+                twitchActivity: {
+                    updatedAt: Date.now(),
+                    active: false,
+                    channels: [],
+                    messages: [],
+                },
+            }
+        )
+    } );
+
+    return validAccounts;
 };
 
 // Connect to the chat for all streams. Wait for replys from all devs.
@@ -78,4 +107,14 @@ function twitchIrc(channels, developers) {
 
 }
 
-twitchIrc(streams, devs);
+let streams;
+
+getStreams()
+    .then( ( allStreams ) => {
+        streams = allStreams;
+
+        return getDevelopers();
+    } )
+    .then( ( allDevs ) => {
+        twitchIrc( streams, allDevs );
+    } );

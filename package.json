@@ -19,6 +19,7 @@
   "homepage": "https://github.com/post-tracker/twitch-lurker#readme",
   "dependencies": {
     "dotenv": "^4.0.0",
+    "got": "^8.0.1",
     "tmi.js": "^1.2.1"
   }
 }
