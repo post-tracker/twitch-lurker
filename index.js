@@ -8,6 +8,23 @@ const got = require( 'got' );
 //     Option 1: Keep a constant 5min message history to grab context message (more context matches)
 //     Option 2: Keep all messages (within 5min) that mention a dev (performant)
 
+const devAccounts = [];
+const posts = [];
+let context = [];
+
+// Prevent oudated context, awful but functional
+setInterval( () => {
+    if ( context.length === 0 ) return;
+
+    const now = Date.now()
+    const timeSinceMessage = Date.now() - context[ 0 ].timestamp
+
+    if ( timeSinceMessage >= 300000 ) {
+        context.shift();
+    }
+
+}, 100 )
+
 const apiRequest = function apiRequest( path ) {
     return got( `https://api.kokarn.com${ path }`, {
             headers: {
@@ -20,6 +37,7 @@ const apiRequest = function apiRequest( path ) {
 };
 
 const getStreams = async function getStreams(){
+    console.log( '<info> Getting streams from API...' );
     const gamesResponse = await apiRequest( '/games' );
 
     for ( let i = 0; i < gamesResponse.data.length; i = i + 1 ) {
@@ -32,6 +50,7 @@ const getStreams = async function getStreams(){
 };
 
 const getDevelopers = async function getDevelopers(){
+    console.log( '<info> Getting developers from API...' );
     const accountResponse = await apiRequest( '/escape-from-tarkov/accounts' );
     const validAccounts = {};
 
@@ -40,7 +59,9 @@ const getDevelopers = async function getDevelopers(){
             return true;
         }
 
-        validAccounts[ account.identifier ] = Object.assign(
+        devAccounts.push( `@${ account.identifier.toLowerCase() }` );
+
+        validAccounts[ account.identifier.toLowerCase() ] = Object.assign(
             {},
             account,
             {
@@ -57,55 +78,94 @@ const getDevelopers = async function getDevelopers(){
     return validAccounts;
 };
 
+// Not happy with this; too many possible inconsistencies
+// - can't guarantee context message will be correct
+function messageHandler( data ) {
+    const { channel, userstate, message, self, devs } = data;
+    const sender = userstate.username;
+
+    const parts = message.split(' ');
+
+    if ( devs[ sender ] ) {
+        // handle dev message
+        parts.forEach( part => {
+            if ( !part.startsWith( '@' )) return;
+
+            // get context
+            context.forEach( ( msg, index ) => {
+                if ( msg.username !== part.slice( 1 ).toLowerCase() || sender !== msg.toDev ) return;
+
+                const newMsg = {
+                    developer: devAccounts[ sender ].identifier,
+                    toUser: msg.displayName,
+                    channel,
+                    message,
+                    context: msg,
+                    timestamp: Date.now(),
+                };
+
+                // Delete context messages after tying to a dev message
+                context.splice( index, 1 );
+
+                console.log( `<info> New post found:\n${ newMsg }` );
+                posts.unshift( newMsg );
+            } );
+        } );
+
+    } else {
+        parts.forEach( part => {
+            if ( !part.startsWith( '@' ) ) return;
+
+            if ( devs[ part.slice( 1 ).toLowerCase() ] ) {
+                const newContext = {
+                    username: userstate.username,
+                    displayName: userstate[ 'display-name' ],
+                    channel,
+                    message,
+                    toDev: part.slice( 1 ).toLowerCase(),
+                    timestamp: Date.now(),
+                };
+
+                context.unshift( newContext );
+            }
+        } );
+    }
+
+}
+
 // Connect to the chat for all streams. Wait for replys from all devs.
 // Optionally only connect when they are live?
 
-function twitchIrc(channels, developers) {
+function twitchIrc( channels, devs ) {
     // Twitch IRC client config options
     /* Docs: https://docs.tmijs.org/v1.2.1/Configuration.html */
     const config = {
         options: {
-            debug: false, // Set to true for irc output to console
+            debug: false,
         },
         connection: {
             reconnect: true,
         },
         identity: {
             username: process.env.TWITCH_USERNAME,
-            password: process.env.TWITCH_OAUTH, // Get yours here: https://twitchapps.com/tmi/
+            password: process.env.TWITCH_OAUTH,
         },
         channels,
     };
 
-    const client = new tmi.client(config);
+    const client = new tmi.client( config );
 
     // The on chat event will fire for every message (in every connected channel)
     /* Docs for chat event: https://docs.tmijs.org/v1.2.1/Events.html#chat */
-    client.on('chat', (channel, userstate, message, self) => {
-        const sender = userstate.username;
-        if (!developers[sender]) return;
-
-        const timestamp = new Date();
-
-        const newMsg = {
-            timestamp,
-            channel,
-            message,
-        };
-
-        // Update with latest activity
-        // Placeholder until API implementation, you get the idea
-        const dev = developers[sender].twitchActivity;
-        dev.updatedAt = timestamp;
-        dev.active = true;
-        dev.channels.push(channel);
-        dev.messages.push(newMsg);
-
+    client.on('chat', ( channel, userstate, message, self ) => {
+        const msgData = { channel, userstate, message, self, devs };
+        messageHandler( msgData );
     });
 
     client.connect();
 
 }
+
 
 let streams;
 
@@ -116,5 +176,6 @@ getStreams()
         return getDevelopers();
     } )
     .then( ( allDevs ) => {
+        console.log( '<info> Listening for dev activity...' );
         twitchIrc( streams, allDevs );
     } );
