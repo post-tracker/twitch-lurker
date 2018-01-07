@@ -17,10 +17,10 @@ setInterval( () => {
     if ( context.length === 0 ) return;
 
     const now = Date.now()
-    const timeSinceMessage = Date.now() - context[ 0 ].timestamp
+    const timeSinceMessage = Date.now() - context[ context.length - 1 ].timestamp
 
     if ( timeSinceMessage >= 300000 ) {
-        context.shift();
+        context.pop();
     }
 
 }, 100 )
@@ -68,7 +68,6 @@ const getDevelopers = async function getDevelopers(){
                 twitchActivity: {
                     updatedAt: Date.now(),
                     active: false,
-                    channels: [],
                     messages: [],
                 },
             }
