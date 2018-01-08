@@ -51,6 +51,12 @@ const getGames = async function getGames() {
     for ( let i = 0; i < gamesResponse.data.length; i = i + 1 ) {
         if ( gamesResponse.data[ i ].config.sources && gamesResponse.data[ i ].config.sources.Twitch ) {
             games.push( gamesResponse.data[ i ].config.sources.Twitch.name );
+
+            if ( gamesResponse.data[ i ].config.sources.Twitch.allowedSections ) {
+                liveStreams = liveStreams.concat( gamesResponse.data[ i ].config.sources.Twitch.allowedSections.map( ( streamName ) => {
+                    return `#${ streamName }`;
+                }) );
+            }
         }
     }
 
@@ -197,7 +203,7 @@ function startup() {
             return getDevelopers();
         } )
         .then( allDevs => {
-            twitchIrc( liveStreams, allDevs );
+            twitchIrc( [ ...new Set( liveStreams ) ], allDevs );
         } );
 }
 
