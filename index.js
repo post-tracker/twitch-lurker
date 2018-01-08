@@ -2,10 +2,10 @@ require( 'dotenv' ).config();
 const tmi = require( 'tmi.js' );
 const got = require( 'got' );
 
-const liveStreams = [];
-const devAccounts = [];
+let liveStreams = [];
+let devAccounts = [];
 const posts = [];
-let context = [];
+const context = [];
 
 // Prevent oudated context, awful but functional
 setInterval( () => {
@@ -195,16 +195,25 @@ function twitchIrc( channels, devs ) {
 
 }
 
+function startup() {
+    getGames()
+        .then( games => {
+            return getStreams( games );
+        } )
+        .then( () => {
+            return getDevelopers();
+        } )
+        .then( allDevs => {
+            twitchIrc( liveStreams, allDevs );
+        } );
+}
 
-let streams;
+startup();
 
-getGames()
-    .then( games => {
-        return getStreams( games );
-    } )
-    .then( () => {
-        return getDevelopers();
-    } )
-    .then( allDevs => {
-        twitchIrc( liveStreams, allDevs );
-    } );
+setInterval( () => {
+    console.log( '<info> Running refresh routine...' );
+    liveStreams = [];
+    devAccounts = [];
+
+    startup();
+}, 600000 );
