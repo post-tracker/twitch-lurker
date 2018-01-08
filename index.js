@@ -20,7 +20,6 @@ const cleanContexts = function cleanContexts(){
     }
 };
 
-}, 100 )
 
 const apiRequest = function apiRequest( path ) {
     return got( `https://api.kokarn.com${ path }`, {
