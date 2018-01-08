@@ -7,15 +7,18 @@ let devAccounts = [];
 const posts = [];
 const context = [];
 
-// Prevent oudated context, awful but functional
-setInterval( () => {
-    if ( context.length === 0 ) return;
+const cleanContexts = function cleanContexts(){
+    if ( context.length === 0 ) {
+        return;
+    }
 
     const timeSinceMessage = Date.now() - context[ context.length - 1 ].timestamp;
 
     if ( timeSinceMessage >= 300000 ) {
         context.pop();
+        cleanContexts();
     }
+};
 
 }, 100 )
 
@@ -208,6 +211,9 @@ function startup() {
 }
 
 startup();
+
+// Prevent oudated context, awful but functional
+setInterval( cleanContexts, 100 );
 
 setInterval( () => {
     console.log( '<info> Running refresh routine...' );
