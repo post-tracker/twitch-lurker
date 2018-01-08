@@ -6,6 +6,7 @@ let liveStreams = [];
 let devAccounts = [];
 const posts = [];
 const context = [];
+let twitchClient = false;
 
 const cleanContexts = function cleanContexts(){
     if ( context.length === 0 ) {
@@ -183,18 +184,21 @@ function twitchIrc( channels, devs ) {
         channels,
     };
 
-    const client = new tmi.client( config );
+    if ( twitchClient ) {
+        twitchClient.disconnect();
+    }
+
+    twitchClient = new tmi.client( config );
 
     // The on chat event will fire for every message (in every connected channel)
     /* Docs for chat event: https://docs.tmijs.org/v1.2.1/Events.html#chat */
-    client.on('chat', ( channel, userstate, message, self ) => {
+    twitchClient.on('chat', ( channel, userstate, message, self ) => {
         const msgData = { channel, userstate, message, self, devs };
         messageHandler( msgData );
     });
 
-    client.connect();
-
-}
+    twitchClient.connect();
+};
 
 function startup() {
     getGames()
