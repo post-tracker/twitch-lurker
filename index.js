@@ -124,7 +124,9 @@ function messageHandler( data ) {
 
             // get context
             context.forEach( ( msg, index ) => {
-                if ( msg.username !== part.slice( 1 ).toLowerCase() || sender !== msg.toDev ) return;
+                if ( msg.username !== part.slice( 1 ).toLowerCase() || sender !== msg.toDev ) {
+                    return;
+                }
 
                 const newMsg = {
                     developer: devAccounts[ sender ].identifier,
