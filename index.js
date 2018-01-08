@@ -61,15 +61,7 @@ const getStreams = async function getStreams( games ) {
     console.log( '<info> Getting streams from kraken API' );
 
     for ( let i = 0; i < games.length; i++ ) {
-        let game = games[ i ];
-        const split = game.split( ' ' )
-        const needsEncoding = ( split.length >= 2 )
-
-        if ( needsEncoding ) {
-            game = split.join( '+' );
-        }
-
-        const apiPath = `/search/streams?query=${ game }&limit=25`;
+        const apiPath = `/search/streams?query=${ encodeURIComponent( game ) }&limit=25`;
         const streamsResponse = await twitchApiRequest( apiPath );
 
         for ( let j = 0; j < streamsResponse.streams.length; j++ ) {
