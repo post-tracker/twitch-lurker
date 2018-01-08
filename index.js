@@ -144,21 +144,17 @@ function messageHandler( data ) {
         } );
 
     } else {
-        parts.forEach( part => {
-            if ( !part.startsWith( '@' ) ) return;
+        parts.forEach( ( part ) => {
+            const newContext = {
+                username: userstate.username,
+                displayName: userstate[ 'display-name' ],
+                channel,
+                message,
+                toDev: part.slice( 1 ).toLowerCase(),
+                timestamp: Date.now(),
+            };
 
-            if ( devs[ part.slice( 1 ).toLowerCase() ] ) {
-                const newContext = {
-                    username: userstate.username,
-                    displayName: userstate[ 'display-name' ],
-                    channel,
-                    message,
-                    toDev: part.slice( 1 ).toLowerCase(),
-                    timestamp: Date.now(),
-                };
-
-                context.unshift( newContext );
-            }
+            context.unshift( newContext );
         } );
     }
 
