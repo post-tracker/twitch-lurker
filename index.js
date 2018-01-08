@@ -157,7 +157,7 @@ function messageHandler( data ) {
 
 
 function twitchIrc( channels, devs ) {
-    console.log( '<info> Listening for dev activity...' );
+    console.log( `<info> Listening for dev activity in ${ channels.join( ', ' ) }` );
 
     // Twitch IRC client config options
     /* Docs: https://docs.tmijs.org/v1.2.1/Configuration.html */
