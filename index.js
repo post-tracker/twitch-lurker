@@ -245,7 +245,7 @@ const messageHandler = function messageHandler( data ) {
     if ( devs[ sender ] ) {
         // handle dev message
         // console.log( chalk.yellow( `${ data.userstate[ 'display-name' ] }: ${ data.message }` ) );
-        devLog.log( `${ data.userstate[ 'display-name' ] }: ${ data.message }` );
+        devLog.log( `${ channel } ${ data.userstate[ 'display-name' ] }: ${ data.message }` );
         parts.forEach( part => {
             if ( !part.startsWith( '@' )) {
                 return;
