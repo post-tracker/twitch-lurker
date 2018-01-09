@@ -36,8 +36,8 @@ const logLine = function logLine( line, log, type = 'info' ) {
      label: 'Message Log'
 });
  const devLog = grid.set(0, 4, 12, 4, contrib.log,  {
-     fg: "green",
-     selectedFg: "green",
+     fg: 'green',
+     selectedFg: 'green',
      label: 'Dev Log'
 });
 const contextCount = grid.set( 0, 8, 3, 4, contrib.lcd, {
@@ -45,26 +45,26 @@ const contextCount = grid.set( 0, 8, 3, 4, contrib.lcd, {
     segmentInterval: 0.11, // spacing between the segments in % so 50% = 0.550% = 0.5
     strokeWidth: 0.11, // spacing between the segments in % so 50% = 0.5
     elements: 6, // how many elements in the display. or how many characters can be displayed.
-    display: 0, // what should be displayed before first call to setDisplay
+    display: 'ZERO', // what should be displayed before first call to setDisplay
     elementSpacing: 4, // spacing between each element
     elementPadding: 2, // how far away from the edges to put the elements
     color: 'white', // color for the segments
-    label: 'Stored contexts'
+    label: 'Stored context objects'
 } );
 const contextSize = grid.set( 3, 8, 3, 4, contrib.lcd, {
     segmentWidth: 0.06, // how wide are the segments in % so 50% = 0.5
     segmentInterval: 0.11, // spacing between the segments in % so 50% = 0.550% = 0.5
     strokeWidth: 0.11, // spacing between the segments in % so 50% = 0.5
     elements: 9, // how many elements in the display. or how many characters can be displayed.
-    display: 0, // what should be displayed before first call to setDisplay
+    display: 'WAITING', // what should be displayed before first call to setDisplay
     elementSpacing: 4, // spacing between each element
     elementPadding: 2, // how far away from the edges to put the elements
     color: 'white', // color for the segments
-    label: 'Context size'
+    label: 'Context memory size'
 } );
 const systemLog = grid.set( 6, 8, 6, 4, contrib.log,  {
-    fg: "green",
-    selectedFg: "green",
+    fg: 'green',
+    selectedFg: 'green',
     label: 'System Log'
 });
 
@@ -118,10 +118,10 @@ function memorySizeOf(obj) {
     };
 
     function formatByteSize(bytes) {
-        if(bytes < 1024) return bytes + " b";
-        else if(bytes < 1048576) return(bytes / 1024).toFixed( decimalPlaces ) + " KB";
-        else if(bytes < 1073741824) return(bytes / 1048576).toFixed( decimalPlaces ) + " MB";
-        else return(bytes / 1073741824).toFixed( decimalPlaces ) + " GB";
+        if(bytes < 1024) return bytes + ' b';
+        else if(bytes < 1048576) return(bytes / 1024).toFixed( decimalPlaces ) + ' KB';
+        else if(bytes < 1073741824) return(bytes / 1048576).toFixed( decimalPlaces ) + ' MB';
+        else return(bytes / 1073741824).toFixed( decimalPlaces ) + ' GB';
     };
 
     return formatByteSize(sizeOf(obj));
@@ -141,8 +141,8 @@ const apiRequest = function apiRequest( path ) {
 const twitchApiRequest = function twitchApiRequest( path ) {
     return got( `https://api.twitch.tv/kraken${ path }`, {
         headers: {
-            "Accept": "application/vnd.twitchtv.v5+json",
-            "Client-ID": process.env.TWITCH_CLIENTID,
+            'Accept': 'application/vnd.twitchtv.v5+json',
+            'Client-ID': process.env.TWITCH_CLIENTID,
         },
     } )
     .then( response => {
@@ -243,7 +243,7 @@ function messageHandler( data ) {
     if ( devs[ sender ] ) {
         // handle dev message
         // console.log( chalk.yellow( `${ data.userstate[ 'display-name' ] }: ${ data.message }` ) );
-        devLog.log( chalk.yellow( `${ data.userstate[ 'display-name' ] }: ${ data.message }` ) );
+        devLog.log( `${ data.userstate[ 'display-name' ] }: ${ data.message }` );
         parts.forEach( part => {
             if ( !part.startsWith( '@' )) return;
 
