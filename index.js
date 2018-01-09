@@ -1,3 +1,5 @@
+const fs = require( 'fs' );
+
 require( 'dotenv' ).config();
 const tmi = require( 'tmi.js' );
 const got = require( 'got' );
@@ -265,7 +267,15 @@ function messageHandler( data ) {
                 // Delete context messages after tying to a dev message
                 context.splice( index, 1 );
 
-                console.log( `<info> New post found:\n${ chalk.green( JSON.stringify( newMsg, null, 4 ) ) }` );
+                // console.log( `<info> New post found:\n${ chalk.green( JSON.stringify( newMsg, null, 4 ) ) }` );
+                fs.appendFile( './devs.txt', JSON.stringify( newMsg, null, 4 ), ( appendError ) => {
+                    if ( appendError ) {
+                        logLine( appendError.message, systemLog, 'error' );
+                    } else {
+                        logLine( 'Dev message saved', systemLog );
+                    }
+
+                } );
                 posts.unshift( newMsg );
             } );
         } );
