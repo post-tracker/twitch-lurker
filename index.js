@@ -238,6 +238,11 @@ const findDevs = async function findDevs(){
         for ( let i = 0; i < streamsCopy.length; i = i + 1 ) {
             await checkDevsInStream( streamsCopy[ i ].replace( '#', '' ) )
         }
+
+        // Wait so we don't blow the CPU ^^
+        if ( streamsCopy.length < 1 ) {
+            await sleep( 1000 );
+        }
     }
 };
 
