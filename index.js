@@ -331,6 +331,15 @@ const messageHandler = function messageHandler( data ) {
         // handle dev message
         // console.log( chalk.yellow( `${ data.userstate[ 'display-name' ] }: ${ data.message }` ) );
         devLog.log( `${ channel } ${ data.userstate[ 'display-name' ] }: ${ data.message }` );
+        fs.appendFile( './posts.txt', `${ JSON.stringify( data ) }\n`, ( appendError ) => {
+            if ( appendError ) {
+                logLine( appendError.message, systemLog, 'error' );
+            } else {
+                logLine( 'Dev message saved', systemLog );
+            }
+
+        } );
+
         parts.forEach( part => {
             if ( !part.startsWith( '@' )) {
                 return;
