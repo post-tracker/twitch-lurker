@@ -225,7 +225,7 @@ const checkDevsInStream = async function checkDevsInStream( stream ) {
 
     for ( const dev in devAccounts ) {
         if ( users.includes( dev ) ) {
-            logLine( `${ dev } spotted in #${ stream }`, devLog );
+            logLine( `[${ timestamp( 'HH:mm' ) }] ${ dev } spotted in #${ stream }`, devLog );
         }
     }
 
