@@ -12,6 +12,11 @@ const now = require( 'performance-now' );
 
 let liveStreams = [];
 let devAccounts = {};
+let twitchNames = {};
+let extraStreams = {};
+let games;
+let gamesToCheck = [];
+
 const posts = [];
 const context = [];
 const screen = blessed.screen();
@@ -258,34 +263,35 @@ const getGames = async function getGames() {
         return false;
     }
 
-    const games = [];
+    games = gamesResponse.data;
 
     for ( let i = 0; i < gamesResponse.data.length; i = i + 1 ) {
         if ( gamesResponse.data[ i ].config.sources && gamesResponse.data[ i ].config.sources.Twitch ) {
-            games.push( gamesResponse.data[ i ].config.sources.Twitch.name );
+
+            if ( gamesResponse.data[ i ].config.sources.Twitch.name ) {
+                twitchNames[ gamesResponse.data.identifier ] = gamesResponse.data[ i ].config.sources.Twitch.name;
+            }
 
             if ( gamesResponse.data[ i ].config.sources.Twitch.allowedSections ) {
-                liveStreams = liveStreams.concat( gamesResponse.data[ i ].config.sources.Twitch.allowedSections.map( ( streamName ) => {
+                extraStreams[ gamesResponse.data.identifier ] =  gamesResponse.data[ i ].config.sources.Twitch.allowedSections.map( ( streamName ) => {
                     return `#${ streamName }`;
-                }) );
+                } );
             }
         }
     }
-
-    return games;
 }
 
-const getStreams = async function getStreams( games ) {
+const getStreams = async function getStreams() {
     // console.log( '<info> Getting streams from kraken API' );
     logLine( 'Getting streams from kraken API', systemLog );
 
-    for ( let i = 0; i < games.length; i++ ) {
-        const apiPath = `/search/streams?query=${ encodeURIComponent( games[ i ] ) }&limit=25`;
+    for ( let i = 0; i < gamesToCheck.length; i = i + 1 ) {
+        const apiPath = `/search/streams?query=${ encodeURIComponent( gamesToCheck[ i ] ) }&limit=25`;
 
         try {
             let streamsResponse = await twitchApiRequest( apiPath );
 
-            logLine( `Twitch returned ${ streamsResponse.streams.length } streams for ${ encodeURIComponent( games[ i ] ) }`, systemLog );
+            logLine( `Twitch returned ${ streamsResponse.streams.length } streams for ${ encodeURIComponent( gamesToCheck[ i ] ) }`, systemLog );
 
             for ( let j = 0; j < streamsResponse.streams.length; j++ ) {
                 const stream = `#${ streamsResponse.streams[ j ].channel.name }`;
@@ -302,25 +308,35 @@ const getStreams = async function getStreams( games ) {
 const getDevelopers = async function getDevelopers(){
     // console.log( '<info> Getting developers from API...' );
     logLine( 'Getting developers from API...', systemLog );
-    const accountResponse = await apiRequest( '/escape-from-tarkov/accounts' );
+    for ( let game of games ) {
+        const accountResponse = await apiRequest( `/${ game.identifier }/accounts` );
 
-    accountResponse.data.map( ( account ) => {
-        if ( account.service !== 'Twitch' ) {
-            return true;
-        }
-
-        devAccounts[ account.identifier.toLowerCase() ] = Object.assign(
-            {},
-            account,
-            {
-                twitchActivity: {
-                    updatedAt: Date.now(),
-                    active: false,
-                    messages: [],
-                },
+        // logLine( `got ${ accountResponse.data.length } accounts for ${ game.identifier }`, systemLog );
+        accountResponse.data.map( ( account ) => {
+            if ( account.service !== 'Twitch' ) {
+                return true;
             }
-        );
-    } );
+
+            const twitchGameName = twitchNames[ game.identifier ] || game.name;
+
+            if ( !gamesToCheck.includes( twitchGameName ) ) {
+                gamesToCheck.push( twitchGameName );
+            }
+
+            devAccounts[ account.identifier.toLowerCase() ] = Object.assign(
+                {},
+                account,
+                {
+                    twitchActivity: {
+                        updatedAt: Date.now(),
+                        active: false,
+                        messages: [],
+                    },
+                }
+            );
+        } );
+    }
+
 };
 
 // Not happy with this; too many possible inconsistencies
@@ -399,7 +415,7 @@ const messageHandler = function messageHandler( data ) {
 
 function twitchIrc( channels ) {
     // console.log( `<info> Listening for dev activity in ${ channels.join( ', ' ) }` );
-    logLine( `Listening for dev activity in ${ channels.length } streams`, systemLog );
+    logLine( `Listening for activity from ${ Object.keys( devAccounts ).length } devs in ${ channels.length } streams`, systemLog );
 
 
     // Twitch IRC client config options
@@ -436,11 +452,11 @@ function twitchIrc( channels ) {
 
 function startup() {
     getGames()
-        .then( ( games ) => {
-            return getStreams( games );
-        } )
         .then( () => {
             return getDevelopers();
+        } )
+        .then( () => {
+            return getStreams();
         } )
         .then( () => {
             twitchIrc( [ ...new Set( liveStreams ) ] );
