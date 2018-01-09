@@ -8,6 +8,7 @@ const blessed = require( 'blessed' );
 const contrib = require( 'blessed-contrib' );
 const chunk = require( 'lodash.chunk' );
 const timestamp = require( 'time-stamp' );
+const now = require( 'performance-now' );
 
 let liveStreams = [];
 let devAccounts = {};
@@ -26,17 +27,6 @@ const lineStats = {
     y: [],
 };
 const MAX_LINE_POINTS = 30;
-
-const logLine = function logLine( line, log, type = 'info' ) {
-    chunk( line.split( '' ), 55 ).forEach( ( arrayChunk ) => {
-        let lineToLog = arrayChunk.join( '' );
-        if ( type === 'error' ) {
-            // lineToLog = chalk.red( lineToLog );
-        }
-
-        log.log( lineToLog );
-    } );
-};
 
  //grid.set(row, col, rowSpan, colSpan, obj, opts)
  const messageLog = grid.set(0, 0, 9, 4, contrib.log,  {
@@ -94,6 +84,31 @@ screen.key(['escape', 'q', 'C-c'], function(ch, key) {
 });
 
 screen.render();
+
+const sleep = function sleep( ms ) {
+    return new Promise( ( resolve ) => {
+        setTimeout( resolve, ms );
+    } );
+};
+
+const logLine = function logLine( line, log, type = 'info' ) {
+    chunk( line.split( '' ), 55 ).forEach( ( arrayChunk ) => {
+        let lineToLog = arrayChunk.join( '' );
+        if ( type === 'error' ) {
+            // lineToLog = chalk.red( lineToLog );
+        }
+
+        log.log( lineToLog );
+    } );
+};
+
+const getUsersInChat = function getUsersInChat( streamName ) {
+    const dataUrl = `https://tmi.twitch.tv/group/user/${ streamName }/chatters`;
+
+    return got( dataUrl, {
+        json: true,
+    } );
+};
 
 const cleanContexts = function cleanContexts(){
     if ( context.length === 0 ) {
@@ -185,6 +200,44 @@ const twitchApiRequest = function twitchApiRequest( path ) {
         return JSON.parse( response.body );
     } );
 }
+
+const checkDevsInStream = async function checkDevsInStream( stream ) {
+    const start = now();
+    let response;
+
+    try {
+        response = await getUsersInChat( stream );
+    } catch ( getUsersError ) {
+        return false;
+    }
+    let users = [];
+
+    Object.keys( response.body.chatters ).forEach( ( chatterType ) => {
+        users = users.concat( response.body.chatters[ chatterType ] );
+    } );
+
+    for ( const dev in devAccounts ) {
+        if ( users.includes( dev ) ) {
+            logLine( `${ dev } spotted in #${ stream }`, devLog );
+        }
+    }
+
+    const end = now();
+
+    // Make sure we don't do more than 1 request / 1000 ms
+    if ( end - start < 1000 ) {
+        await sleep( 1000 - ( end - start ) );
+    }
+};
+
+const findDevs = async function findDevs(){
+    while ( true ) {
+        const streamsCopy = liveStreams.slice(); // Make sure the streams isn't altered
+        for ( let i = 0; i < streamsCopy.length; i = i + 1 ) {
+            await checkDevsInStream( streamsCopy[ i ].replace( '#', '' ) )
+        }
+    }
+};
 
 const getGames = async function getGames() {
     // console.log( '<info> Fetching games from API...' );
@@ -379,6 +432,7 @@ function startup() {
 }
 
 startup();
+findDevs();
 
 setInterval( cleanContexts, 100 );
 setInterval( () => {
