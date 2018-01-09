@@ -198,7 +198,7 @@ const twitchApiRequest = function twitchApiRequest( path ) {
         },
         json: true,
     } )
-    .then( response => {
+    .then( ( response ) => {
         return response.body;
     } );
 }
@@ -314,7 +314,7 @@ const getDevelopers = async function getDevelopers(){
                     messages: [],
                 },
             }
-        )
+        );
     } );
 };
 
@@ -359,7 +359,7 @@ const messageHandler = function messageHandler( data ) {
                     if ( appendError ) {
                         logLine( appendError.message, systemLog, 'error' );
                     } else {
-                        logLine( 'Dev message saved', systemLog );
+                        logLine( 'Dev post saved', systemLog );
                     }
 
                 } );
@@ -385,7 +385,7 @@ const messageHandler = function messageHandler( data ) {
 
 function twitchIrc( channels ) {
     // console.log( `<info> Listening for dev activity in ${ channels.join( ', ' ) }` );
-    logLine( `Listening for dev activity in ${ channels.join( ', ' ) }`, systemLog );
+    logLine( `Listening for dev activity in ${ channels.length } streams`, systemLog );
 
 
     // Twitch IRC client config options
@@ -436,14 +436,18 @@ function startup() {
 startup();
 findDevs();
 
+// Initiate a clean contexts call every 100ms
 setInterval( cleanContexts, 100 );
+
+// Update memory usage every 1000ms
 setInterval( () => {
     contextSize.setDisplay( memorySizeOf( context ) );
 }, 1000 );
+
+// Update performance line every 1000ms
 setInterval( () => {
     performanceLine.setData( [ lineStats ] );
 }, 1000 );
-
 
 setInterval( () => {
     // console.log( '<info> Running refresh routine...' );
