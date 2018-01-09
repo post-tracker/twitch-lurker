@@ -215,6 +215,8 @@ const checkDevsInStream = async function checkDevsInStream( stream ) {
     try {
         response = await getUsersInChat( stream );
     } catch ( getUsersError ) {
+        logLine( `Failed to get users for ${ stream }`, systemLog );
+        logLine( getUsersError.message, systemLog );
         return false;
     }
     let users = [];
