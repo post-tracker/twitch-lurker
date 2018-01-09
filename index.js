@@ -10,7 +10,7 @@ const chunk = require( 'lodash.chunk' );
 const timestamp = require( 'time-stamp' );
 
 let liveStreams = [];
-let devAccounts = [];
+let devAccounts = {};
 const posts = [];
 const context = [];
 const screen = blessed.screen();
@@ -243,16 +243,13 @@ const getDevelopers = async function getDevelopers(){
     // console.log( '<info> Getting developers from API...' );
     logLine( 'Getting developers from API...', systemLog );
     const accountResponse = await apiRequest( '/escape-from-tarkov/accounts' );
-    const validAccounts = {};
 
     accountResponse.data.map( ( account ) => {
         if ( account.service !== 'Twitch' ) {
             return true;
         }
 
-        devAccounts.push( `@${ account.identifier.toLowerCase() }` );
-
-        validAccounts[ account.identifier.toLowerCase() ] = Object.assign(
+        devAccounts[ account.identifier.toLowerCase() ] = Object.assign(
             {},
             account,
             {
@@ -264,20 +261,18 @@ const getDevelopers = async function getDevelopers(){
             }
         )
     } );
-
-    return validAccounts;
 };
 
 // Not happy with this; too many possible inconsistencies
 // - can't guarantee context message will be correct
 const messageHandler = function messageHandler( data ) {
-    const { channel, userstate, message, self, devs } = data;
+    const { channel, userstate, message, self } = data;
     const sender = userstate.username;
 
     const parts = message.split(' ');
     addMessageStat();
 
-    if ( devs[ sender ] ) {
+    if ( devAccounts[ sender ] ) {
         // handle dev message
         // console.log( chalk.yellow( `${ data.userstate[ 'display-name' ] }: ${ data.message }` ) );
         devLog.log( `${ channel } ${ data.userstate[ 'display-name' ] }: ${ data.message }` );
@@ -333,7 +328,7 @@ const messageHandler = function messageHandler( data ) {
 }
 
 
-function twitchIrc( channels, devs ) {
+function twitchIrc( channels ) {
     // console.log( `<info> Listening for dev activity in ${ channels.join( ', ' ) }` );
     logLine( `Listening for dev activity in ${ channels.join( ', ' ) }`, systemLog );
 
@@ -363,7 +358,7 @@ function twitchIrc( channels, devs ) {
     // The on chat event will fire for every message (in every connected channel)
     /* Docs for chat event: https://docs.tmijs.org/v1.2.1/Events.html#chat */
     twitchClient.on('chat', ( channel, userstate, message, self ) => {
-        const msgData = { channel, userstate, message, self, devs };
+        const msgData = { channel, userstate, message, self };
         messageHandler( msgData );
     });
 
@@ -378,8 +373,8 @@ function startup() {
         .then( () => {
             return getDevelopers();
         } )
-        .then( ( allDevs ) => {
-            twitchIrc( [ ...new Set( liveStreams ) ], allDevs );
+        .then( () => {
+            twitchIrc( [ ...new Set( liveStreams ) ] );
         } );
 }
 
@@ -398,7 +393,7 @@ setInterval( () => {
     // console.log( '<info> Running refresh routine...' );
     logLine( 'Running refresh routine...', systemLog );
     liveStreams = [];
-    devAccounts = [];
+    devAccounts = {};
 
     startup();
 }, 600000 );
