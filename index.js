@@ -183,9 +183,10 @@ const apiRequest = function apiRequest( path ) {
             headers: {
                 Authorization: `Bearer ${ process.env.API_TOKEN }`
             },
+            json: true,
         } )
         .then( ( response ) => {
-            return JSON.parse( response.body );
+            return response.body;
         } );
 };
 
@@ -195,9 +196,10 @@ const twitchApiRequest = function twitchApiRequest( path ) {
             'Accept': 'application/vnd.twitchtv.v5+json',
             'Client-ID': process.env.TWITCH_CLIENTID,
         },
+        json: true,
     } )
     .then( response => {
-        return JSON.parse( response.body );
+        return response.body;
     } );
 }
 
