@@ -288,7 +288,7 @@ const messageHandler = function messageHandler( data ) {
 
             // get context
             context.forEach( ( msg, index ) => {
-                if ( msg.username !== part.slice( 1 ).toLowerCase() && msg.channel !== channel ) {
+                if ( msg.username !== part.slice( 1 ).toLowerCase() || msg.channel !== channel ) {
                     return;
                 }
 
