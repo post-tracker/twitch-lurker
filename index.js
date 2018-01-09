@@ -33,8 +33,8 @@ const logLine = function logLine( line, log, type = 'info' ) {
 
  //grid.set(row, col, rowSpan, colSpan, obj, opts)
  const messageLog = grid.set(0, 0, 12, 4, contrib.log,  {
-     fg: "green",
-     selectedFg: "green",
+     fg: 'green',
+     selectedFg: 'green',
      label: 'Message Log'
 });
  const devLog = grid.set(0, 4, 12, 4, contrib.log,  {
@@ -89,7 +89,7 @@ const cleanContexts = function cleanContexts(){
     }
 };
 
-function memorySizeOf(obj) {
+const memorySizeOf = function memorySizeOf(obj) {
     var bytes = 0;
     const decimalPlaces = 2;
 
@@ -236,7 +236,7 @@ const getDevelopers = async function getDevelopers(){
 
 // Not happy with this; too many possible inconsistencies
 // - can't guarantee context message will be correct
-function messageHandler( data ) {
+const messageHandler = function messageHandler( data ) {
     const { channel, userstate, message, self, devs } = data;
     const sender = userstate.username;
 
@@ -247,7 +247,9 @@ function messageHandler( data ) {
         // console.log( chalk.yellow( `${ data.userstate[ 'display-name' ] }: ${ data.message }` ) );
         devLog.log( `${ data.userstate[ 'display-name' ] }: ${ data.message }` );
         parts.forEach( part => {
-            if ( !part.startsWith( '@' )) return;
+            if ( !part.startsWith( '@' )) {
+                return;
+            }
 
             // get context
             context.forEach( ( msg, index ) => {
@@ -279,10 +281,7 @@ function messageHandler( data ) {
                 posts.unshift( newMsg );
             } );
         } );
-
     } else {
-        messageLog.log( `${ data.userstate[ 'display-name' ] }: ${ data.message }` );
-
         const newContext = {
             username: userstate.username,
             displayName: userstate[ 'display-name' ],
@@ -293,11 +292,10 @@ function messageHandler( data ) {
         };
 
         context.unshift( newContext );
-
+        messageLog.log( `${ data.userstate[ 'display-name' ] }: ${ data.message }` );
         contextCount.setDisplay( context.length );
         contextSize.setDisplay( memorySizeOf( context ) );
     }
-
 }
 
 
@@ -340,20 +338,19 @@ function twitchIrc( channels, devs ) {
 
 function startup() {
     getGames()
-        .then( games => {
+        .then( ( games ) => {
             return getStreams( games );
         } )
         .then( () => {
             return getDevelopers();
         } )
-        .then( allDevs => {
+        .then( ( allDevs ) => {
             twitchIrc( [ ...new Set( liveStreams ) ], allDevs );
         } );
 }
 
 startup();
 
-// Prevent oudated context, awful but functional
 setInterval( cleanContexts, 100 );
 
 setInterval( () => {
