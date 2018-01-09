@@ -296,9 +296,11 @@ const getStreams = async function getStreams() {
             logLine( `Twitch returned ${ streamsResponse.streams.length } streams for ${ encodeURIComponent( gamesToCheck[ i ] ) }`, systemLog );
 
             for ( let j = 0; j < streamsResponse.streams.length; j++ ) {
-                const stream = `#${ streamsResponse.streams[ j ].channel.name }`;
+                if ( streamsResponse.streams[ j ].viewers >= 100 ) {
+                    const stream = `#${ streamsResponse.streams[ j ].channel.name }`;
 
-                liveStreams.push( stream );
+                    liveStreams.push( stream );
+                }
             }
         } catch ( twitchApiRequestError ) {
             logLine( `Twitch ${ apiPath } failed with "${ twitchApiRequestError.message }".`, systemLog, 'error'  );
