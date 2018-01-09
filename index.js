@@ -7,6 +7,7 @@ const chalk = require( 'chalk' );
 const blessed = require( 'blessed' );
 const contrib = require( 'blessed-contrib' );
 const chunk = require( 'lodash.chunk' );
+const timestamp = require( 'time-stamp' );
 
 let liveStreams = [];
 let devAccounts = [];
@@ -19,6 +20,12 @@ const grid = new contrib.grid( {
     cols: 12,
     screen: screen
 } );
+const lineStats = {
+    title: 'texts',
+    x: [],
+    y: [],
+};
+const MAX_LINE_POINTS = 30;
 
 const logLine = function logLine( line, log, type = 'info' ) {
     chunk( line.split( '' ), 55 ).forEach( ( arrayChunk ) => {
@@ -32,11 +39,23 @@ const logLine = function logLine( line, log, type = 'info' ) {
 };
 
  //grid.set(row, col, rowSpan, colSpan, obj, opts)
- const messageLog = grid.set(0, 0, 12, 4, contrib.log,  {
+ const messageLog = grid.set(0, 0, 9, 4, contrib.log,  {
      fg: 'green',
      selectedFg: 'green',
      label: 'Message Log'
 });
+const performanceLine = grid.set(9, 0, 3, 4, contrib.line, {
+    style: {
+        line: 'yellow',
+        ext: 'green',
+        baseline: 'black'
+    },
+    xLabelPadding: 3,
+    xPadding: 5,
+    howLegend: true,
+    wholeNumbersOnly: true, //true=do not show fraction in y axis
+    label: 'Messages / second',
+ });
  const devLog = grid.set(0, 4, 12, 4, contrib.log,  {
      fg: 'green',
      selectedFg: 'green',
@@ -87,6 +106,21 @@ const cleanContexts = function cleanContexts(){
         context.pop();
         cleanContexts();
     }
+};
+
+const addMessageStat = function addMessageStat(){
+    const currentTimestamp = timestamp( 'HH:mm:ss' );
+    if ( lineStats.x.length > MAX_LINE_POINTS ) {
+        lineStats.x.shift();
+        lineStats.y.shift();
+    }
+
+    if ( lineStats.x[ lineStats.x.length - 1 ] !== currentTimestamp ) {
+        lineStats.x.push( currentTimestamp );
+        lineStats.y.push( 0 );
+    }
+
+    lineStats.y[ lineStats.y.length - 1 ] = lineStats.y[ lineStats.y.length - 1 ] + 1;
 };
 
 const memorySizeOf = function memorySizeOf(obj) {
@@ -241,6 +275,7 @@ const messageHandler = function messageHandler( data ) {
     const sender = userstate.username;
 
     const parts = message.split(' ');
+    addMessageStat();
 
     if ( devs[ sender ] ) {
         // handle dev message
@@ -354,6 +389,10 @@ setInterval( cleanContexts, 100 );
 setInterval( () => {
     contextSize.setDisplay( memorySizeOf( context ) );
 }, 1000 );
+setInterval( () => {
+    performanceLine.setData( [ lineStats ] );
+}, 1000 );
+
 
 setInterval( () => {
     // console.log( '<info> Running refresh routine...' );
