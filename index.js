@@ -294,7 +294,6 @@ const messageHandler = function messageHandler( data ) {
         context.unshift( newContext );
         messageLog.log( `${ data.userstate[ 'display-name' ] }: ${ data.message }` );
         contextCount.setDisplay( context.length );
-        contextSize.setDisplay( memorySizeOf( context ) );
     }
 }
 
@@ -352,6 +351,9 @@ function startup() {
 startup();
 
 setInterval( cleanContexts, 100 );
+setInterval( () => {
+    contextSize.setDisplay( memorySizeOf( context ) );
+}, 1000 );
 
 setInterval( () => {
     // console.log( '<info> Running refresh routine...' );
