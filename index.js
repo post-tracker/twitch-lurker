@@ -278,7 +278,7 @@ function messageHandler( data ) {
             displayName: userstate[ 'display-name' ],
             channel,
             message,
-            toDev: part.slice( 1 ).toLowerCase(),
+            // toDev: part.slice( 1 ).toLowerCase(),
             timestamp: Date.now(),
         };
 
