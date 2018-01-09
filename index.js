@@ -412,12 +412,17 @@ const messageHandler = function messageHandler( data ) {
     }
 }
 
-
-function twitchIrc( channels ) {
-    // console.log( `<info> Listening for dev activity in ${ channels.join( ', ' ) }` );
+const streamConnectionHandler = async function streamConnectionHandler( channels ) {
     logLine( `Listening for activity from ${ Object.keys( devAccounts ).length } devs in ${ channels.length } streams`, systemLog );
 
+    for ( const channel of channels ) {
+        twitchClient.join( channel );
 
+        await sleep( 1000 );
+    }
+}
+
+const twitchIrc = async function twitchIrc() {
     // Twitch IRC client config options
     /* Docs: https://docs.tmijs.org/v1.2.1/Configuration.html */
     const config = {
@@ -431,7 +436,7 @@ function twitchIrc( channels ) {
             username: process.env.TWITCH_USERNAME,
             password: process.env.TWITCH_OAUTH,
         },
-        channels,
+        channels: [],
     };
 
     if ( twitchClient ) {
@@ -447,7 +452,7 @@ function twitchIrc( channels ) {
         messageHandler( msgData );
     });
 
-    twitchClient.connect();
+    await twitchClient.connect();
 };
 
 function startup() {
@@ -459,7 +464,10 @@ function startup() {
             return getStreams();
         } )
         .then( () => {
-            twitchIrc( [ ...new Set( liveStreams ) ] );
+            return twitchIrc();
+        } )
+        .then( () => {
+            streamConnectionHandler( [ ...new Set( liveStreams ) ] );
         } );
 }
 
