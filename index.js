@@ -272,18 +272,17 @@ function messageHandler( data ) {
 
     } else {
         messageLog.log( `${ data.userstate[ 'display-name' ] }: ${ data.message }` );
-        parts.forEach( ( part ) => {
-            const newContext = {
-                username: userstate.username,
-                displayName: userstate[ 'display-name' ],
-                channel,
-                message,
-                toDev: part.slice( 1 ).toLowerCase(),
-                timestamp: Date.now(),
-            };
 
-            context.unshift( newContext );
-        } );
+        const newContext = {
+            username: userstate.username,
+            displayName: userstate[ 'display-name' ],
+            channel,
+            message,
+            toDev: part.slice( 1 ).toLowerCase(),
+            timestamp: Date.now(),
+        };
+
+        context.unshift( newContext );
 
         contextCount.setDisplay( context.length );
         contextSize.setDisplay( memorySizeOf( context ) );
