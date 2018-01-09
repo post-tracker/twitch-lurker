@@ -417,10 +417,21 @@ const messageHandler = function messageHandler( data ) {
 const streamConnectionHandler = async function streamConnectionHandler( channels ) {
     logLine( `Listening for activity from ${ Object.keys( devAccounts ).length } devs in ${ channels.length } streams`, systemLog );
 
-    for ( const channel of channels ) {
-        twitchClient.join( channel );
+    const currentChannels = twitchClient.getChannels();
 
-        await sleep( 1000 );
+    for ( const connectedChannel of currentChannels ) {
+        if ( !channels.includes( connectedChannel ) ) {
+            twitchClient.part( connectedChannel );
+            await sleep( 1000 );
+
+        }
+    }
+
+    for ( const newChannel of channels ) {
+        if ( !currentChannels.includes( newChannel ) ) {
+            twitchClient.join( newChannel );
+            await sleep( 1000 );
+        }
     }
 }
 
@@ -441,20 +452,18 @@ const twitchIrc = async function twitchIrc() {
         channels: [],
     };
 
-    if ( twitchClient ) {
-        twitchClient.disconnect();
+    if ( !twitchClient ) {
+        twitchClient = new tmi.client( config );
+
+        // The on chat event will fire for every message (in every connected channel)
+        /* Docs for chat event: https://docs.tmijs.org/v1.2.1/Events.html#chat */
+        twitchClient.on('chat', ( channel, userstate, message, self ) => {
+            const msgData = { channel, userstate, message, self };
+            messageHandler( msgData );
+        });
+
+        await twitchClient.connect();
     }
-
-    twitchClient = new tmi.client( config );
-
-    // The on chat event will fire for every message (in every connected channel)
-    /* Docs for chat event: https://docs.tmijs.org/v1.2.1/Events.html#chat */
-    twitchClient.on('chat', ( channel, userstate, message, self ) => {
-        const msgData = { channel, userstate, message, self };
-        messageHandler( msgData );
-    });
-
-    await twitchClient.connect();
 };
 
 function startup() {
