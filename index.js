@@ -184,7 +184,7 @@ const memorySizeOf = function memorySizeOf(obj) {
 };
 
 const apiRequest = function apiRequest( path ) {
-    return got( `https://api.kokarn.com${ path }`, {
+    return got( `https://api2.developertracker.com${ path }`, {
             headers: {
                 Authorization: `Bearer ${ process.env.API_TOKEN }`
             },
