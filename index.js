@@ -2,20 +2,17 @@ const fs = require( 'fs' );
 
 require( 'dotenv' ).config();
 const tmi = require( 'tmi.js' );
-const got = require( 'got' );
-const chalk = require( 'chalk' );
 const blessed = require( 'blessed' );
 const contrib = require( 'blessed-contrib' );
 const chunk = require( 'lodash.chunk' );
 const timestamp = require( 'time-stamp' );
-const now = require( 'performance-now' );
 
 let liveStreams = [];
 let devAccounts = {};
 let twitchNames = {};
-let extraStreams = {};
 let games;
 let gamesToCheck = [];
+const gameIdCache = {};
 
 const posts = [];
 const context = [];
@@ -99,19 +96,8 @@ const sleep = function sleep( ms ) {
 const logLine = function logLine( line, log, type = 'info' ) {
     chunk( line.split( '' ), 55 ).forEach( ( arrayChunk ) => {
         let lineToLog = arrayChunk.join( '' );
-        if ( type === 'error' ) {
-            // lineToLog = chalk.red( lineToLog );
-        }
 
         log.log( lineToLog );
-    } );
-};
-
-const getUsersInChat = function getUsersInChat( streamName ) {
-    const dataUrl = `https://tmi.twitch.tv/group/user/${ streamName }/chatters`;
-
-    return got( dataUrl, {
-        json: true,
     } );
 };
 
@@ -183,85 +169,58 @@ const memorySizeOf = function memorySizeOf(obj) {
     return formatByteSize(sizeOf(obj));
 };
 
-const apiRequest = function apiRequest( path ) {
-    return got( `https://api2.developertracker.com${ path }`, {
-            headers: {
-                Authorization: `Bearer ${ process.env.API_TOKEN }`
-            },
-            json: true,
-        } )
-        .then( ( response ) => {
-            return response.body;
-        } );
+const apiRequest = async function apiRequest( path ) {
+    const response = await fetch( `https://api2.developertracker.com${ path }`, {
+        headers: {
+            Authorization: `Bearer ${ process.env.API_TOKEN }`,
+        },
+    } );
+
+    if ( !response.ok ) {
+        throw new Error( `API request failed: ${ response.status } ${ response.statusText }` );
+    }
+
+    return response.json();
 };
 
-const twitchApiRequest = function twitchApiRequest( path ) {
-    return got( `https://api.twitch.tv/kraken${ path }`, {
+const twitchApiRequest = async function twitchApiRequest( path ) {
+    const response = await fetch( `https://api.twitch.tv/helix${ path }`, {
         headers: {
-            'Accept': 'application/vnd.twitchtv.v5+json',
+            'Authorization': `Bearer ${ process.env.TWITCH_OAUTH_TOKEN }`,
             'Client-ID': process.env.TWITCH_CLIENTID,
         },
-        json: true,
-    } )
-    .then( ( response ) => {
-        return response.body;
-    } );
-}
-
-const checkDevsInStream = async function checkDevsInStream( stream ) {
-    const start = now();
-    let response;
-
-    try {
-        response = await getUsersInChat( stream );
-    } catch ( getUsersError ) {
-        logLine( `Failed to get users for ${ stream }`, systemLog );
-        logLine( getUsersError.message, systemLog );
-        return false;
-    }
-    let users = [];
-
-    Object.keys( response.body.chatters ).forEach( ( chatterType ) => {
-        users = users.concat( response.body.chatters[ chatterType ] );
     } );
 
-    for ( const dev in devAccounts ) {
-        if ( users.includes( dev ) ) {
-            logLine( `[${ timestamp( 'HH:mm' ) }] ${ dev } spotted in #${ stream }`, devLog );
-        }
+    if ( !response.ok ) {
+        throw new Error( `Twitch API request failed: ${ response.status } ${ response.statusText }` );
     }
 
-    const end = now();
-
-    // Make sure we don't do more than 1 request / 1000 ms
-    if ( end - start < 1000 ) {
-        await sleep( 1000 - ( end - start ) );
-    }
+    return response.json();
 };
 
-const findDevs = async function findDevs(){
-    while ( true ) {
-        const streamsCopy = liveStreams.slice(); // Make sure the streams isn't altered
-        for ( let i = 0; i < streamsCopy.length; i = i + 1 ) {
-            await checkDevsInStream( streamsCopy[ i ].replace( '#', '' ) )
-        }
-
-        // Wait so we don't blow the CPU ^^
-        if ( streamsCopy.length < 1 ) {
-            await sleep( 1000 );
-        }
+const getGameId = async function getGameId( gameName ) {
+    if ( gameIdCache[ gameName ] ) {
+        return gameIdCache[ gameName ];
     }
+
+    const data = await twitchApiRequest( `/games?name=${ encodeURIComponent( gameName ) }` );
+
+    if ( data.data && data.data.length > 0 ) {
+        gameIdCache[ gameName ] = data.data[ 0 ].id;
+        return data.data[ 0 ].id;
+    }
+
+    logLine( `Could not find game ID for "${ gameName }"`, systemLog, 'error' );
+    return null;
 };
 
 const getGames = async function getGames() {
-    // console.log( '<info> Fetching games from API...' );
     logLine( 'Fetching games from API...', systemLog );
     let gamesResponse;
     try {
         gamesResponse = await apiRequest( '/games' );
     } catch ( apiRequestError ) {
         logLine( apiRequestError, systemLog, 'error' );
-        // throw apiRequestError;
         return false;
     }
 
@@ -270,58 +229,53 @@ const getGames = async function getGames() {
     for ( let i = 0; i < gamesResponse.data.length; i = i + 1 ) {
         if ( gamesResponse.data[ i ].config.sources && gamesResponse.data[ i ].config.sources.Twitch ) {
 
-            if ( gamesResponse.data[ i ].config.sources.Twitch.name ) {
-                twitchNames[ gamesResponse.data.identifier ] = gamesResponse.data[ i ].config.sources.Twitch.name;
-            }
-
-            if ( gamesResponse.data[ i ].config.sources.Twitch.allowedSections ) {
-                extraStreams[ gamesResponse.data.identifier ] =  gamesResponse.data[ i ].config.sources.Twitch.allowedSections.map( ( streamName ) => {
-                    return `#${ streamName }`;
-                } );
+            if ( gamesResponse.data[ i ].config.sources.Twitch.name ) {
+                twitchNames[ gamesResponse.data[ i ].identifier ] = gamesResponse.data[ i ].config.sources.Twitch.name;
             }
         }
     }
 }
 
 const getStreams = async function getStreams() {
-    // console.log( '<info> Getting streams from kraken API' );
-    logLine( 'Getting streams from kraken API', systemLog );
+    logLine( 'Getting streams from Helix API', systemLog );
 
     for ( let i = 0; i < gamesToCheck.length; i = i + 1 ) {
-        const apiPath = `/search/streams?query=${ encodeURIComponent( gamesToCheck[ i ] ) }&limit=25`;
+        const gameId = await getGameId( gamesToCheck[ i ] );
+
+        if ( !gameId ) {
+            logLine( `Skipping "${ gamesToCheck[ i ] }" - no game ID found`, systemLog );
+            continue;
+        }
 
         try {
-            let streamsResponse = await twitchApiRequest( apiPath );
+            let streamsResponse = await twitchApiRequest( `/streams?game_id=${ gameId }&first=25` );
 
-            logLine( `Twitch returned ${ streamsResponse.streams.length } streams for ${ encodeURIComponent( gamesToCheck[ i ] ) }`, systemLog );
+            logLine( `Twitch returned ${ streamsResponse.data.length } streams for ${ gamesToCheck[ i ] }`, systemLog );
 
-            for ( let j = 0; j < streamsResponse.streams.length; j++ ) {
-                if ( streamsResponse.streams[ j ].viewers >= 100 ) {
-                    const stream = `#${ streamsResponse.streams[ j ].channel.name }`;
+            for ( let j = 0; j < streamsResponse.data.length; j++ ) {
+                if ( streamsResponse.data[ j ].viewer_count >= 100 ) {
+                    const stream = `#${ streamsResponse.data[ j ].user_login }`;
 
                     liveStreams.push( stream );
                 }
             }
         } catch ( twitchApiRequestError ) {
-            logLine( `Twitch ${ apiPath } failed with "${ twitchApiRequestError.message }".`, systemLog, 'error'  );
-            // throw twitchApiRequestError;
+            logLine( `Twitch streams for "${ gamesToCheck[ i ] }" failed: "${ twitchApiRequestError.message }"`, systemLog, 'error' );
         }
     }
 }
 
 const getDevelopers = async function getDevelopers(){
-    // console.log( '<info> Getting developers from API...' );
     logLine( 'Getting developers from API...', systemLog );
     for ( let game of games ) {
-        const accountResponse = await apiRequest( `/${ game.identifier }/accounts` );
+        const accountResponse = await apiRequest( `/${ game.identifier }/accounts` );
 
-        // logLine( `got ${ accountResponse.data.length } accounts for ${ game.identifier }`, systemLog );
         accountResponse.data.map( ( account ) => {
             if ( account.service !== 'Twitch' ) {
                 return true;
             }
 
-            const twitchGameName = twitchNames[ game.identifier ] || game.name;
+            const twitchGameName = twitchNames[ game.identifier ] || game.name;
 
             if ( !gamesToCheck.includes( twitchGameName ) ) {
                 gamesToCheck.push( twitchGameName );
@@ -354,7 +308,6 @@ const messageHandler = function messageHandler( data ) {
 
     if ( devAccounts[ sender ] ) {
         // handle dev message
-        // console.log( chalk.yellow( `${ data.userstate[ 'display-name' ] }: ${ data.message }` ) );
         devLog.log( `${ channel } ${ data.userstate[ 'display-name' ] }: ${ data.message }` );
         fs.appendFile( './posts.txt', `${ JSON.stringify( data ) }\n`, ( appendError ) => {
             if ( appendError ) {
@@ -388,7 +341,6 @@ const messageHandler = function messageHandler( data ) {
                 // Delete context messages after tying to a dev message
                 context.splice( index, 1 );
 
-                // console.log( `<info> New post found:\n${ chalk.green( JSON.stringify( newMsg, null, 4 ) ) }` );
                 fs.appendFile( './devs.txt', JSON.stringify( newMsg, null, 4 ), ( appendError ) => {
                     if ( appendError ) {
                         logLine( appendError.message, systemLog, 'error' );
@@ -406,7 +358,6 @@ const messageHandler = function messageHandler( data ) {
             displayName: userstate[ 'display-name' ],
             channel,
             message,
-            // toDev: part.slice( 1 ).toLowerCase(),
             timestamp: Date.now(),
         };
 
@@ -417,7 +368,7 @@ const messageHandler = function messageHandler( data ) {
 }
 
 const streamConnectionHandler = async function streamConnectionHandler( channels ) {
-    logLine( `Listening for activity from ${ Object.keys( devAccounts ).length } devs in ${ channels.length } streams`, systemLog );
+    logLine( `Listening for activity from ${ Object.keys( devAccounts ).length } devs in ${ channels.length } streams`, systemLog );
 
     const currentChannels = twitchClient.getChannels();
 
@@ -485,7 +436,6 @@ function startup() {
 }
 
 startup();
-findDevs();
 
 // Initiate a clean contexts call every 100ms
 setInterval( cleanContexts, 100 );
@@ -501,10 +451,10 @@ setInterval( () => {
 }, 1000 );
 
 setInterval( () => {
-    // console.log( '<info> Running refresh routine...' );
     logLine( 'Running refresh routine...', systemLog );
     liveStreams = [];
     devAccounts = {};
+    gamesToCheck = [];
 
     startup();
 }, 600000 );
