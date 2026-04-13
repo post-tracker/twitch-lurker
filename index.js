@@ -309,7 +309,7 @@ const messageHandler = function messageHandler( data ) {
     if ( devAccounts[ sender ] ) {
         // handle dev message
         devLog.log( `${ channel } ${ data.userstate[ 'display-name' ] }: ${ data.message }` );
-        fs.appendFile( './posts.txt', `${ JSON.stringify( data ) }\n`, ( appendError ) => {
+        fs.appendFile( './debug/posts.txt', `${ JSON.stringify( data ) }\n`, ( appendError ) => {
             if ( appendError ) {
                 logLine( appendError.message, systemLog, 'error' );
             } else {
@@ -341,7 +341,7 @@ const messageHandler = function messageHandler( data ) {
                 // Delete context messages after tying to a dev message
                 context.splice( index, 1 );
 
-                fs.appendFile( './devs.txt', JSON.stringify( newMsg, null, 4 ), ( appendError ) => {
+                fs.appendFile( './debug/devs.txt', JSON.stringify( newMsg, null, 4 ), ( appendError ) => {
                     if ( appendError ) {
                         logLine( appendError.message, systemLog, 'error' );
                     } else {
