@@ -170,7 +170,7 @@ const memorySizeOf = function memorySizeOf(obj) {
 };
 
 const apiRequest = async function apiRequest( path ) {
-    const response = await fetch( `https://api2.developertracker.com${ path }`, {
+    const response = await fetch( `https://api.developertracker.com${ path }`, {
         headers: {
             Authorization: `Bearer ${ process.env.API_TOKEN }`,
         },
